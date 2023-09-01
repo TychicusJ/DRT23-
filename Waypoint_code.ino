@@ -1,7 +1,6 @@
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
 #include <QMC5883LCompass.h>
 #include <SPI.h>
 #include <SD.h>
@@ -15,7 +14,7 @@
    connected to the SCL/SDA pins.
 */
 
-const int chipSelect = 5;
+const int chipSelect = 5; // pin for SD card module
 static const int RXPin = 36, TXPin = 39; // RX and TX pins are reverse on the board RX goto 39 and TX goto 36 
 static const uint32_t GPSBaud = 9600;
 
