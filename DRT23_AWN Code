@@ -1,0 +1,232 @@
+// DRT23- Autonomous Waypoint Navigation Car
+// Arthur: Demetria Labat, Rony Akhter, & Tychicus Johnson
+// Created 13 September 2023
+
+#include <Wire.h> // Used by I2C and QMC5883L compass
+#include <QMC5883LCompass.h> // Library for the compass
+#include <SoftwareSerial.h> // Software Serial for Serial Communications
+#include <TinyGPSPlus.h> // Tiny GPS Plus Library - Download from http://arduiniana.org/libraries/tinygpsplus/
+
+/*
+   This sketch demonstrates the normal use of a TinyGPS++(TinyGPSPlus) object.
+   It requires the use of SoftwareSerial, and using the 
+   9600-baud serial GPS device hooked up on pins 36(rx) and 39(tx) and a QMC5883 Magnetic Compass
+   connected to the SCL/SDA pins.
+*/
+
+static const int RXPin = 36, TXPin = 39; // RX and TX pins are reverse on the board RX goto 39 and TX goto 36 
+static const uint32_t GPSBaud = 9600; // Baud rate for GPS communication
+
+// Assign a Unique ID to the QMC5883 Compass Sensor
+QMC5883LCompass compass; // QMC5883L Compass object
+TinyGPSPlus gps; // The TinyGPSPlus object
+SoftwareSerial ss(RXPin, TXPin); // The serial connection to the GPS device
+
+// setting up the value longitude, latitude, bearing, and heading
+float latc,logc; // Current latitude and longitude
+float latd=32.2994318,logd=-90.2126861; // Destination latitude and longitude
+float bearing; // Bearing angle between current and destination points
+float heading; // Compass heading
+
+// Initializing Motors
+// Motor A connections
+int enA = 2; // speed control pin for left side
+int in1 = 27; // left front motor
+int in2 = 16; // left rear motor
+// Motor B connections
+int enB = 4; // speed control pin for right side
+int in3 = 17; // right front motor
+int in4 = 25; // right rear motor
+
+void setup() 
+{
+  Wire.begin(); // Initialize I2C communication
+  Serial.begin(115200); // Initialize serial communication with the computer
+  ss.begin(GPSBaud); // Initialize serial communication with the GPS device
+  compass.init(); // Initialize the compass sensor
+
+// Set all the motor control pins to outputs
+	pinMode(enA, OUTPUT);
+	pinMode(enB, OUTPUT);
+	pinMode(in1, OUTPUT);
+	pinMode(in2, OUTPUT);
+	pinMode(in3, OUTPUT);
+	pinMode(in4, OUTPUT);
+
+}
+
+void loop() 
+{
+
+  headingcal(); // Call function to read compass heading
+    delay(200);
+  gpsdata();    // Call function to read GPS data
+    delay(200);
+  gpsheading(); // Call function to calculate GPS heading
+    delay(200);
+  steering();   // Call function to control motors based on heading
+    delay(200);
+
+}
+
+// GPS data retrieval function
+void gpsdata()
+{
+  smartDelay(1000); // Wait for GPS data to stabilize
+  unsigned long start;
+  double lat_val, lng_val, alt_m_val;
+  bool loc_valid, alt_valid;
+  lat_val = gps.location.lat();
+  loc_valid = gps.location.isValid();
+  lng_val = gps.location.lng();
+  alt_m_val = gps.altitude.meters();
+  alt_valid = gps.altitude.isValid();
+
+  if (!loc_valid)
+    {
+      Serial.print("Latitude : ");
+      Serial.println("*****"); // Print placeholder for invalid latitude
+      Serial.print("Longitude : ");
+      Serial.println("*****"); // Print placeholder for invalid longitude
+      delay(100);
+    }
+
+  else
+    {
+      Serial.println("GPS READING: ");
+      // DegMinSec(lat_val);
+      Serial.print("Latitude in Decimal Degrees : ");
+      Serial.println(gps.location.lat(), 6); // Print latitude with 6 decimal places
+
+      // DegMinSec(lng_val); 
+      Serial.print("Longitude in Decimal Degrees : ");
+      Serial.println(gps.location.lng(), 6); // Print longitude with 6 decimal places
+      delay(100);
+    }
+
+  latc = lat_val;
+  logc = lng_val;
+}
+
+// Smart delay function to wait for GPS data
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = millis();
+  do
+    {
+      while (ss.available()) 
+      gps.encode(ss.read());
+    } while (millis() - start < ms);
+}
+
+// GPS heading calculation function
+void gpsheading()
+{
+  float x, y, deltalog, deltalat;
+  deltalog = logd - logc;
+  deltalat = latd - latc;
+
+  x = cos (latd) * sin(deltalog);
+  y=(cos(latc) * sin(latd)) -(sin(latc) *c os(latd) * cos(deltalog));
+  
+  bearing = (atan2(x, y)) * (180 / 3.14);
+  Serial.print("bearing: ");
+  Serial.println(bearing);
+
+  float a,d,c;
+  a = (((sin(deltalat / 2))) * (sin(deltalat / 2))) + ((cos(latc)) * (cos(latd)) * (((sin(deltalog / 2))) *(sin(deltalog / 2)))  );
+  c = 2*(atan2(sqrt(a), sqrt(1 - a)));
+  d = 6371 * c; 
+  //Serial.println(d);
+}
+
+// Compass heading calculation function
+void headingcal()
+{
+  int x, y, z;
+  char myArray[3];
+	compass.read(); // Read data from the compass sensor
+  x = compass.getX();
+  y = compass.getY();
+  z = compass.getZ();
+  delay(100);
+
+  heading=atan2(x, y) / 0.0174532925;
+  if(heading < 0) 
+    {
+      heading += 360;
+    }
+  
+  heading = 360 - heading; // N=0/360, E=90, S=180, W=270
+  Serial.print("heading: ");
+  Serial.println(heading);  
+}
+
+// Motor control functions
+void steering()
+{
+  float finalv;
+  finalv = heading / bearing;
+  Serial.print("finalv: ");
+  Serial.println(finalv);
+    
+  if(finalv>=0&&finalv<=1)
+    {
+      forward();  // Move forward
+    }
+
+  else if(finalv >1 && finalv <=8)
+    {
+      left(); // Turn left
+    }
+
+  else if(finalv <=13 && finalv >=8)
+    {
+      right();  // Turn right
+    }
+
+  else if(logd==logc && latc==latd)
+    {
+      stop1();  // Stop if destination is reached
+    }
+}
+
+// Motor control functions for different directions
+void forward()
+{
+  digitalWrite(in1,HIGH);
+  digitalWrite(in2,LOW);
+  digitalWrite(in3,HIGH);
+  digitalWrite(in4,LOW);
+}
+
+void right()
+{
+  digitalWrite(in1,HIGH);
+  digitalWrite(in2,LOW);
+  digitalWrite(in3,LOW);
+  digitalWrite(in4,HIGH);
+}
+
+void left()
+{
+  digitalWrite(in1,LOW);
+  digitalWrite(in2,HIGH);
+  digitalWrite(in3,HIGH);
+  digitalWrite(in4,LOW);
+}
+
+void back()
+{
+  digitalWrite(in1,HIGH);
+  digitalWrite(in2,LOW);
+  digitalWrite(in3,HIGH);
+  digitalWrite(in4,LOW);
+}
+void stop1()
+{
+  digitalWrite(in1,LOW);
+  digitalWrite(in2,LOW);
+  digitalWrite(in3,LOW);
+  digitalWrite(in4,LOW);
+}
