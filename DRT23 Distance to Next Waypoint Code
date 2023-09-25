@@ -1,0 +1,157 @@
+#include <TinyGPSPlus.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <QMC5883LCompass.h>
+#include <math.h>
+
+static const int RXPin = 36, TXPin = 39;
+static const uint32_t GPSBaud = 9600;
+
+QMC5883LCompass compass;
+TinyGPSPlus gps;
+SoftwareSerial ss(RXPin, TXPin);
+
+double lat1 = 0.0;
+double lon1 = 0.0;
+double lat2 = 0.0;
+double lon2 = 0.0;
+
+bool waitingForInput = true; // Flag to indicate waiting for user input
+bool waypointReached = false; // Flag to indicate if waypoint 2 has been reached
+bool compassFunctional = false; // Flag to indicate compass functionality
+
+void setup() {
+  Serial.begin(115200);
+  ss.begin(GPSBaud);
+
+  // Wait for GPS initialization
+  while (!gps.location.isValid() && millis() < 10000) {
+    // if (ss.available()) {
+    //   gps.encode(ss.read());
+   // }
+  }
+
+  // Check if satellites are valid
+  if (gps.satellites.isValid()) {
+    Serial.print("Satellites detected: ");
+    Serial.println(gps.satellites.value());
+    delay(1000);
+  }
+}
+
+void loop() {
+  // Read GPS data
+  while (ss.available() > 0) {
+    if (gps.encode(ss.read())) {
+      if (gps.location.isValid()) {
+        lat1 = gps.location.lat();
+        lon1 = gps.location.lng();
+        // Print latitude and longitude
+        Serial.print("Latitude: ");
+        Serial.println(lat1, 6); // Display with 6 decimal places
+        delay(500);
+        Serial.print("Longitude: ");
+        Serial.println(lon1, 6); // Display with 6 decimal places
+        delay(500);
+      }
+
+      // If waiting for user input, check for input
+       if (waitingForInput) {
+         Serial.println("Enter Latitude 2: ");
+         if (Serial.available() > 0) {
+           lat2 = Serial.parseFloat(); // Read user input as a float
+           waitingForInput = false; // Stop waiting for input
+           Serial.println("Enter Longitude 2: ");
+         }
+       } else {
+         if (Serial.available() > 0) {
+           lon2 = Serial.parseFloat(); // Read user input as a float
+           waitingForInput = true; // Resume waiting for input
+           Serial.println("Coordinates updated.");
+        }
+      }
+    }
+  }
+  
+
+
+   // Read compass data
+   compass.read();
+   float heading = compass.getAzimuth();
+
+   // If the compass data is within a reasonable range, assume it's functional
+   if (heading >= 0 && heading <= 360) {
+     compassFunctional = true;
+     // You can perform compass-related operations here
+   }
+
+   // Check if both lat2 and lon2 are entered
+   if (lat2 != 0.0 && lon2 != 0.0 && compassFunctional) {
+     // Calculate initial bearing
+     double initialBearing = calculateInitialBearing(lat1, lon1, lat2, lon2);
+
+     // Calculate distance
+     double distance = calculateDistance(lat1, lon1, lat2, lon2);
+
+     // Display or use the distance
+     Serial.print("Distance to waypoint 2: ");
+     Serial.print(distance, 6); // Display with 6 decimal places
+     Serial.println(" m");
+
+     // Check if the distance is below a threshold (adjust this threshold as needed)
+     if (distance < 10.0) { // You can adjust the threshold distance
+       waypointReached = true;
+     }
+
+     // Check if waypoint 2 has been reached
+     if (waypointReached) {
+       Serial.println("Waypoint 2 has been reached.");
+       waypointReached = false; // Reset the flag
+    }
+  }
+  delay(1000); // Add a delay to control how often you update the distance
+}
+
+ double calculateInitialBearing(double lat1, double lon1, double lat2, double lon2) {
+   // Convert latitudes and longitudes from degrees to radians
+   lat1 = radians(lat1);
+   lon1 = radians(lon1);
+   lat2 = radians(lat2);
+   lon2 = radians(lon2);
+
+   // Calculate the bearing in radians
+   double dlon = lon2 - lon1;
+   double y = sin(dlon) * cos(lat2);
+   double x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlon);
+   double initialBearing = atan2(y, x);
+
+   // Convert bearing from radians to degrees
+   initialBearing = degrees(initialBearing);
+
+   // Normalize the bearing to the range [0, 360]
+   if (initialBearing < 0) {
+     initialBearing += 360.0;
+   }
+
+   return initialBearing;
+ }
+
+ double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+   // Radius of the Earth in meters
+   double R = 6371000;
+
+   // Convert latitude and longitude from degrees to radians
+   lat1 = radians(lat1);
+   lon1 = radians(lon1);
+   lat2 = radians(lat2);
+   lon2 = radians(lon2);
+
+   // Haversine formula
+   double dlon = lon2 - lon1;
+   double dlat = lat2 - lat1;
+   double a = pow(sin(dlat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dlon / 2), 2);
+   double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+   double distance = R * c;
+
+   return distance;
+ }
