@@ -1,8 +1,8 @@
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+#include <AFMotor.h>                                              // the Adafruit Motor Shield Library ver. 1 https://learn.adafruit.com/adafruit-motor-shield/library-install
 #include <QMC5883LCompass.h>
-#include <L298N.h>
 #include <math.h>
 
 double prevLat = 0.0;
@@ -11,40 +11,34 @@ double userLat = 0.0;
 double userLng = 0.0;
 bool waypointSet = false; // Flag to indicate if a waypoint has been set
 
-
 /*
    This sample sketch demonstrates the normal use of a TinyGPS++(TinyGPSPlus) object.
    It requires the use of SoftwareSerial, and assumes that you have a
-   9600-baud serial GPS device hooked up on pins 2(rx) and 15(tx) and a QMC5883 Magnetic Compass
-   connected to the SCL (21)/ SDA (22) pins.
+   9600-baud serial GPS device hooked up on pins 17(rx) and 16(tx) and a QMC5883 Magnetic Compass
+   connected to the SCL (21)/ SDA (20) pins.
 */
 
-static const int RXPin = 15, TXPin = 2; // RX and TX pins are reverse on the board RX goto 2 and TX goto 15 
+static const int RXPin = 17, TXPin = 16; // RX and TX pins are reverse on the board RX goto 16 and TX goto 17 
 static const uint32_t GPSBaud = 9600;
+SoftwareSerial ss(RXPin, TXPin); // The serial connection to the GPS device
+// The TinyGPSPlus object
+TinyGPSPlus gps; // The GT-U7 gps 
 
 // Assign a Unique ID to the QMC5883 Compass Sensor
 QMC5883LCompass compass;
 
 
-// The TinyGPSPlus object
-TinyGPSPlus gps; // The GT-U7 gps 
 
-// The serial connection to the GPS device
-SoftwareSerial ss(RXPin, TXPin);
+// Setup Drive Motors using the Adafruit Motor Controller version 1.0 Library
 
-// Initializing Motors
-// Motor A connections
-int enA = 25; // speed control pin for left side
-int in1 = 32; // left front motor
-int in2 = 33; // left rear motor
-// Motor B connections
-int enB = 26; // speed control pin for right side
-int in3 = 27; // right front motor
-int in4 = 14; // right rear motor
+AF_DCMotor motor1(1, MOTOR12_64KHZ);                               // create motor #1, 64KHz pwm
+AF_DCMotor motor2(2, MOTOR12_64KHZ);                               // create motor #2, 64KHz pwm
+AF_DCMotor motor3(3, MOTOR12_64KHZ);                               // create motor #3, 64KHz pwm
+AF_DCMotor motor4(4, MOTOR12_64KHZ);                               // create motor #4, 64KHz pwm
 
-// Motor speed constants (adjust as needed)
-int baseSpeed = 200; // Adjust as needed (0-255 range)
-int turnSpeed = 150; // Adjust as needed (0-255 range)
+int turn_Speed = 175;                                              // motor speed when using the compass to turn left and right
+int mtr_Spd = 250;                                                 // motor speed when moving forward and reverse
+
 
 void setup()
 {
@@ -57,18 +51,6 @@ void setup()
   Serial.println();
   Serial.println(F("Enter the next waypoint coordinates (latitude and longitude) in decimal degrees."));
   Serial.println(F("Use the format: LATITUDE, LONGITUDE"));
-
-  // Set all the motor control pins to outputs
-	pinMode(enA, OUTPUT);
-	pinMode(enB, OUTPUT);
-	pinMode(in1, OUTPUT);
-	pinMode(in2, OUTPUT);
-	pinMode(in3, OUTPUT);
-	pinMode(in4, OUTPUT);
-
-  // Initialize motor speeds
-  analogWrite(enA, baseSpeed);
-  analogWrite(enB, baseSpeed);
 
 }
 
@@ -241,42 +223,86 @@ void adjustMotors(double desiredHeading, double currentAzimuth)
   while (headingError <= -180.0) headingError += 360.0;
 
 
-  // Adjust motor speeds based on heading error
-  if (fabs(headingError) > headingTolerance)
-  {
-     // Turn left
-    if (headingError > 0)
-    {
-      digitalWrite(in1, LOW);
-      digitalWrite(in2, HIGH);
-      digitalWrite(in3, HIGH);
-      digitalWrite(in4, LOW);
-    }
-    // Turn right
-    else
-    {
-      digitalWrite(in1, HIGH);
-      digitalWrite(in2, LOW);
-      digitalWrite(in3, LOW);
-      digitalWrite(in4, HIGH);
-    }
+ // Motor control functions for different directions
 
-    // Set motor speeds
-    analogWrite(enA, baseSpeed); // Adjust as needed (0-255 range)
-    analogWrite(enB, baseSpeed); // Adjust as needed (0-255 range)
-  }
-  else
-  {
-    // Move forward (no steering correction needed)
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, HIGH);
-    digitalWrite(in3, HIGH);
-    digitalWrite(in4, HIGH);
 
-    // Set motor speeds
-    analogWrite(enA, baseSpeed); // Adjust as needed (0-255 range)
-    analogWrite(enB, baseSpeed); // Adjust as needed (0-255 range)
-  }
+  Serial.println("Forward");
+  motor1.setSpeed(mtr_Spd);                                                   
+  motor2.setSpeed(mtr_Spd);     
+  motor3.setSpeed(mtr_Spd);     
+  motor4.setSpeed(mtr_Spd);                           
+  
+  motor1.run(FORWARD);                                                         // go forward all wheels 
+  motor2.run(FORWARD);
+  motor3.run(FORWARD);
+  motor4.run(FORWARD);
+}
+
+// **********************************************************************************************************************************************************************
+void Forward()
+{
+  motor1.setSpeed(mtr_Spd);                                                   
+  motor2.setSpeed(mtr_Spd);     
+  motor3.setSpeed(mtr_Spd);     
+  motor4.setSpeed(mtr_Spd);     
+  
+  motor1.run(FORWARD);                                                        // go forward all wheels for specified time
+  motor2.run(FORWARD);
+  motor3.run(FORWARD);
+  motor4.run(FORWARD);
+  delay(500);
+}
+
+// **********************************************************************************************************************************************************************
+void StopCar()
+{
+  motor1.run(RELEASE);                                                         
+  motor2.run(RELEASE);
+  motor3.run(RELEASE);
+  motor4.run(RELEASE);
+
+}
+// **********************************************************************************************************************************************************************
+void RightTurn()
+{
+  motor1.setSpeed(mtr_Spd);                                                   
+  motor2.setSpeed(mtr_Spd);     
+  motor3.setSpeed(mtr_Spd);     
+  motor4.setSpeed(mtr_Spd);   
+
+  motor1.run(FORWARD);                                              
+  motor2.run(BACKWARD);
+  motor3.run(BACKWARD);
+  motor4.run(FORWARD);
+  delay(100);                                                           //delay for 100ms more responsive turn per push on bluetooth                   
+}
+
+// **********************************************************************************************************************************************************************
+void LeftTurn()
+{
+  motor1.setSpeed(mtr_Spd);                                                   
+  motor2.setSpeed(mtr_Spd);     
+  motor3.setSpeed(mtr_Spd);     
+  motor4.setSpeed(mtr_Spd);    
+  
+  motor1.run(BACKWARD);                                                        // Turn left
+  motor2.run(FORWARD);
+  motor3.run(FORWARD);
+  motor4.run(BACKWARD);
+  delay(100);    
+}
+// **********************************************************************************************************************************************************************
+void Reverse()
+{
+  motor1.setSpeed(mtr_Spd);                                                   
+  motor2.setSpeed(mtr_Spd);     
+  motor3.setSpeed(mtr_Spd);     
+  motor4.setSpeed(mtr_Spd);    
+  
+  motor1.run(BACKWARD);                                                        // Reverse all wheels
+  motor2.run(BACKWARD);
+  motor3.run(BACKWARD);
+  motor4.run(BACKWARD);
 }
 
 double calculateHeading(double lat1, double lon1, double lat2, double lon2)
@@ -324,4 +350,13 @@ void navigateToWaypoint() {
     // Adjust the motors based on the desired heading and current azimuth
     adjustMotors(desiredHeading, compass.getAzimuth());
   }
+}
+
+int main() {
+  init();
+  setup();
+  while (true) {
+    loop();
+  }
+  return 0;
 }
