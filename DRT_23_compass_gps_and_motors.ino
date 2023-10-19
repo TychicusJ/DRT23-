@@ -341,16 +341,30 @@ void navigateToWaypoint() {
   if (distanceToWaypoint <= waypointThreshold) {
     Serial.println(F("Waypoint reached!"));
     // Stop the motors or perform any desired actions
-    // You can add code here to stop the motors or take any other actions when the waypoint is reached.
-  }
-  else {
+    StopCar(); // Stop the motors when the waypoint is reached
+  } else {
     // Calculate the desired heading to the waypoint
     double desiredHeading = calculateHeading(gps.location.lat(), gps.location.lng(), userLat, userLng);
 
     // Adjust the motors based on the desired heading and current azimuth
-    adjustMotors(desiredHeading, compass.getAzimuth());
+    double currentAzimuth = compass.getAzimuth();
+    double headingError = desiredHeading - currentAzimuth;
+
+    // Normalize the heading error to be between -180 and 180 degrees
+    while (headingError > 180.0) headingError -= 360.0;
+    while (headingError <= -180.0) headingError += 360.0;
+
+    if (headingError < -10.0) {
+      LeftTurn(); // Turn left when the heading error is significant
+    } else if (headingError > 10.0) {
+      RightTurn(); // Turn right when the heading error is significant
+    } else {
+      Forward(); // Go forward when the heading error is small
+    }
   }
 }
+
+
 
 int main() {
   init();
