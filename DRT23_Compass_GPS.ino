@@ -8,11 +8,11 @@
 /*
    This sample sketch demonstrates the normal use of a TinyGPS++(TinyGPSPlus) object.
    It requires the use of SoftwareSerial, and assumes that you have a
-   9600-baud serial GPS device hooked up on pins 17(rx) and 16(tx) and a QMC5883 Magnetic Compass
+   9600-baud serial GPS device hooked up on pins 51(rx) and 49(tx) and a QMC5883 Magnetic Compass
    connected to the SCL/SDA pins.
 */
 
-static const int RXPin = 17 , TXPin = 16; // RX and TX pins are reverse on the board RX goto 16 and TX goto 17 
+static const int RXPin = 51 , TXPin = 49; // RX and TX pins are reverse on the board RX goto 49 and TX goto 51 
 static const uint32_t GPSBaud = 9600;
 
 // Assign a Unique ID to the QMC5883 Compass Sensor
