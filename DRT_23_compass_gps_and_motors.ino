@@ -14,11 +14,11 @@ bool waypointSet = false; // Flag to indicate if a waypoint has been set
 /*
    This sample sketch demonstrates the normal use of a TinyGPS++(TinyGPSPlus) object.
    It requires the use of SoftwareSerial, and assumes that you have a
-   9600-baud serial GPS device hooked up on pins 17(rx) and 16(tx) and a QMC5883 Magnetic Compass
-   connected to the SCL (21)/ SDA (20) pins.
+   9600-baud serial GPS device hooked up on pins 51(rx) and 49(tx) and a QMC5883 Magnetic Compass
+   connected to the SCL ()/ SDA () pins.
 */
 
-static const int RXPin = 17, TXPin = 16; // RX and TX pins are reverse on the board RX goto 16 and TX goto 17 
+static const int RXPin = 51, TXPin = 49; // RX and TX pins are reverse on the board RX goto 49 and TX goto 51 
 static const uint32_t GPSBaud = 9600;
 SoftwareSerial ss(RXPin, TXPin); // The serial connection to the GPS device
 // The TinyGPSPlus object
