@@ -36,8 +36,8 @@ AF_DCMotor motor2(2, MOTOR12_64KHZ);                               // create mot
 AF_DCMotor motor3(3, MOTOR12_64KHZ);                               // create motor #3, 64KHz pwm
 AF_DCMotor motor4(4, MOTOR12_64KHZ);                               // create motor #4, 64KHz pwm
 
-int turn_Speed = 175;                                              // motor speed when using the compass to turn left and right
-int mtr_Spd = 250;                                                 // motor speed when moving forward and reverse
+int turn_Speed = 200;                                              // motor speed when using the compass to turn left and right
+int mtr_Spd = 255;                                                 // motor speed when moving forward and reverse
 
 
 void setup()
