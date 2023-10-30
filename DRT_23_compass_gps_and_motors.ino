@@ -224,20 +224,6 @@ void adjustMotors(double desiredHeading, double currentAzimuth)
 
 
  // Motor control functions for different directions
-
-
-  Serial.println("Forward");
-  motor1.setSpeed(mtr_Spd);                                                   
-  motor2.setSpeed(mtr_Spd);     
-  motor3.setSpeed(mtr_Spd);     
-  motor4.setSpeed(mtr_Spd);                           
-  
-  motor1.run(FORWARD);                                                         // go forward all wheels 
-  motor2.run(FORWARD);
-  motor3.run(FORWARD);
-  motor4.run(FORWARD);
-}
-
 // **********************************************************************************************************************************************************************
 void Forward()
 {
@@ -362,15 +348,4 @@ void navigateToWaypoint() {
       Forward(); // Go forward when the heading error is small
     }
   }
-}
-
-
-
-int main() {
-  init();
-  setup();
-  while (true) {
-    loop();
-  }
-  return 0;
 }
